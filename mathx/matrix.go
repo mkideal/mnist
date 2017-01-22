@@ -135,6 +135,12 @@ func (mat *Matrix) Set(i, j int, x Float) *Matrix {
 }
 
 func (mat *Matrix) T() *Matrix {
+	mat2 := mat.Clone()
+	mat2.transpose = !mat2.transpose
+	return mat2
+}
+
+func (mat *Matrix) SelfT() *Matrix {
 	mat.transpose = !mat.transpose
 	return mat
 }
@@ -175,15 +181,15 @@ func (mat *Matrix) subTo(mat2, ans *Matrix) *Matrix {
 	return ans
 }
 
-func (mat *Matrix) MapMul(mat2 *Matrix) *Matrix {
-	return mat.mapMulTo(mat2, NewMatrix(mat.RowCount(), mat.ColCount()))
+func (mat *Matrix) HadamardProduct(mat2 *Matrix) *Matrix {
+	return mat.hadamardProductTo(mat2, NewMatrix(mat.RowCount(), mat.ColCount()))
 }
 
-func (mat *Matrix) MapMulWith(mat2 *Matrix) *Matrix {
-	return mat.subTo(mat2, mat)
+func (mat *Matrix) HadamardProductWith(mat2 *Matrix) *Matrix {
+	return mat.hadamardProductTo(mat2, mat)
 }
 
-func (mat *Matrix) mapMulTo(mat2, ans *Matrix) *Matrix {
+func (mat *Matrix) hadamardProductTo(mat2, ans *Matrix) *Matrix {
 	m, n := mat.RowCount(), mat.ColCount()
 	for i := 0; i < m; i++ {
 		for j := 0; j < n; j++ {

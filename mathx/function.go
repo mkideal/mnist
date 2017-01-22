@@ -21,7 +21,14 @@ func Shuffle(vec []int) {
 
 func Identity(x Float) Float { return x }
 func Square(x Float) Float   { return x * x }
-func Sigmoid(x Float) Float  { return Float(1.0 / (1.0 + math.Exp(-float64(x)))) }
+func Abs(x Float) Float      { return Float(math.Abs(float64(x))) }
+func Sign(x Float) Float {
+	if x > 0 {
+		return 1
+	}
+	return -1
+}
+func Sigmoid(x Float) Float { return Float(1.0 / (1.0 + math.Exp(-float64(x)))) }
 func SigmoidPrime(x Float) Float {
 	x = Sigmoid(x)
 	return x * (1 - x)

@@ -1,49 +1,51 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"time"
 
 	"github.com/mkideal/minist/dataloader"
 	"github.com/mkideal/minist/mathx"
 )
 
-const (
-	trainingImageFile = "./dataset/train-images-idx3-ubyte"
-	trainingLabelFile = "./dataset/train-labels-idx1-ubyte"
-	testImageFile     = "./dataset/t10k-images-idx3-ubyte"
-	testLabelFile     = "./dataset/t10k-labels-idx1-ubyte"
-)
-
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	// 创建网络: 28*[x1*...xk*]10
+	flDatasetPath := flag.String("d", "./dataset", "minist dataset path")
+	flag.Parse()
+
+	var (
+		trainingImageFile = filepath.Join(*flDatasetPath, "train-images-idx3-ubyte")
+		trainingLabelFile = filepath.Join(*flDatasetPath, "train-labels-idx1-ubyte")
+		testImageFile     = filepath.Join(*flDatasetPath, "t10k-images-idx3-ubyte")
+		testLabelFile     = filepath.Join(*flDatasetPath, "t10k-labels-idx1-ubyte")
+	)
+
 	net := NewNetwork([]int{28 * 28, 24, 10})
 
-	// 读取训练数据
+	// read training data
 	trainingdata, err := dataloader.ReadTrainingSet(trainingImageFile, trainingLabelFile)
 	if err != nil {
 		panic(err)
 	}
 	trainingdata, _ = dataloader.SplitTrainingSet(trainingdata)
 
-	// 读取测试数据
+	// read test data
 	testdata, err := dataloader.ReadTestSet(testImageFile, testLabelFile)
 	if err != nil {
 		panic(err)
 	}
 
-	// 使用随机梯度下降法执行训练
-	net.train(trainingdata, testdata, 3)
+	// train(and test)
+	net.train(trainingdata, testdata, 4)
 }
 
 type Network struct {
-	weights      []*mathx.Matrix
-	biases       []*mathx.Matrix
-	nablaWeights []*mathx.Matrix
-	nablaBiases  []*mathx.Matrix
+	weights []*mathx.Matrix
+	biases  []*mathx.Matrix
 }
 
 func NewNetwork(numNodes []int) *Network {
@@ -51,13 +53,9 @@ func NewNetwork(numNodes []int) *Network {
 	n := len(numNodes) - 1
 	net.weights = make([]*mathx.Matrix, n)
 	net.biases = make([]*mathx.Matrix, n)
-	net.nablaWeights = make([]*mathx.Matrix, n)
-	net.nablaBiases = make([]*mathx.Matrix, n)
 	for i := 0; i < n; i++ {
 		net.weights[i] = mathx.NewMatrix(numNodes[i+1], numNodes[i]).RandInit(-0.001, 0.001)
 		net.biases[i] = mathx.NewMatrix(numNodes[i+1], 1).RandInit(-0.001, 0.001)
-		net.nablaWeights[i] = mathx.NewMatrix(net.weights[i].RowCount(), net.weights[i].ColCount())
-		net.nablaBiases[i] = mathx.NewMatrix(net.biases[i].RowCount(), 1)
 	}
 	return net
 }
@@ -74,7 +72,7 @@ func (net *Network) train(dataSet, testdata []*dataloader.Data, eta mathx.Float)
 		}
 		if len(testdata) > 0 {
 			errorPrecision := net.evaluate(testdata)
-			fmt.Printf("epoch %d: error precision: %.2f%%\n", i+1, errorPrecision*100)
+			fmt.Printf("epoch %2d: %.2f%%\n", i+1, errorPrecision*100)
 		}
 	}
 }
@@ -82,9 +80,11 @@ func (net *Network) train(dataSet, testdata []*dataloader.Data, eta mathx.Float)
 func (net *Network) updateMiniBatch(dataSet []*dataloader.Data, eta mathx.Float) {
 	n := len(net.weights)
 	eta /= mathx.Float(len(dataSet))
+	nablaWeights := make([]*mathx.Matrix, n)
+	nablaBiases := make([]*mathx.Matrix, n)
 	for i := 0; i < n; i++ {
-		net.nablaWeights[i].Reset()
-		net.nablaBiases[i].Reset()
+		nablaWeights[i] = mathx.NewMatrix(net.weights[i].RowCount(), net.weights[i].ColCount())
+		nablaBiases[i] = mathx.NewMatrix(net.biases[i].RowCount(), 1)
 	}
 	deltaNablaWeights := make([]*mathx.Matrix, n)
 	deltaNablaBiases := make([]*mathx.Matrix, n)
@@ -94,14 +94,14 @@ func (net *Network) updateMiniBatch(dataSet []*dataloader.Data, eta mathx.Float)
 	}
 	for _, data := range dataSet {
 		net.backprop(data, deltaNablaWeights, deltaNablaBiases)
-		for i := range net.nablaWeights {
-			net.nablaWeights[i].AddWith(deltaNablaWeights[i])
-			net.nablaBiases[i].AddWith(deltaNablaBiases[i])
+		for i := range nablaWeights {
+			nablaWeights[i].AddWith(deltaNablaWeights[i])
+			nablaBiases[i].AddWith(deltaNablaBiases[i])
 		}
 	}
 	for i := range net.weights {
-		net.weights[i].SubWith(net.nablaWeights[i].ScaleWith(eta))
-		net.biases[i].SubWith(net.nablaBiases[i].ScaleWith(eta))
+		net.weights[i].SubWith(nablaWeights[i].ScaleWith(eta))
+		net.biases[i].SubWith(nablaBiases[i].ScaleWith(eta))
 	}
 }
 
@@ -121,21 +121,25 @@ func (net *Network) backprop(data *dataloader.Data, nablaWeights, nablaBiases []
 		acts = append(acts, act)
 	}
 
-	delta := net.costDerivative(acts[n], data.Output).MapMul(zs[n-1].Map(mathx.SigmoidPrime).Clone().T())
+	delta := net.costDerivative(acts[n], data.Output).HadamardProduct(zs[n-1].Map(mathx.SigmoidPrime).T())
 
-	nablaWeights[n-1] = delta.Mul(acts[n-1].Clone().T())
+	nablaWeights[n-1] = delta.Mul(acts[n-1].T())
 	nablaBiases[n-1] = delta.Clone()
 	for i := n - 2; i >= 0; i-- {
 		z := zs[i]
 		sp := z.Map(mathx.SigmoidPrime)
-		delta = net.weights[i+1].Clone().T().Mul(delta).MapMul(sp)
-		nablaWeights[i] = delta.Mul(acts[i].Clone().T())
+		delta = net.weights[i+1].T().Mul(delta).HadamardProduct(sp)
+		nablaWeights[i] = delta.Mul(acts[i].T())
 		nablaBiases[i] = delta.Clone()
 	}
 }
 
 func (net *Network) costDerivative(act, output *mathx.Matrix) *mathx.Matrix {
-	return act.Sub(output)
+	return act.Sub(output).MapWith(signSquare)
+}
+
+func signSquare(x mathx.Float) mathx.Float {
+	return mathx.Sign(x) * mathx.Abs(x*x*x)
 }
 
 func (net *Network) test(data *dataloader.Data) bool {
@@ -152,7 +156,7 @@ func (net *Network) evaluate(dataSet []*dataloader.Data) mathx.Float {
 	}
 	num := 0
 	for _, data := range dataSet {
-		if !net.test(data) {
+		if net.test(data) {
 			num++
 		}
 	}
