@@ -135,11 +135,11 @@ func (net *Network) backprop(data *dataloader.Data, nablaWeights, nablaBiases []
 }
 
 func (net *Network) costDerivative(act, output *mathx.Matrix) *mathx.Matrix {
-	return act.Sub(output).MapWith(signSquare)
+	return act.Sub(output).MapWith(cube)
 }
 
-func signSquare(x mathx.Float) mathx.Float {
-	return mathx.Sign(x) * mathx.Abs(x*x*x)
+func cube(x mathx.Float) mathx.Float {
+	return x * x * x
 }
 
 func (net *Network) test(data *dataloader.Data) bool {
