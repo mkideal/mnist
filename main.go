@@ -44,8 +44,10 @@ func main() {
 }
 
 type Network struct {
-	weights []*mathx.Matrix
-	biases  []*mathx.Matrix
+	weights     []*mathx.Matrix
+	biases      []*mathx.Matrix
+	actfuncs    []mathx.UnaryFunction
+	actderfuncs []mathx.UnaryFunction
 }
 
 func NewNetwork(numNodes []int) *Network {
@@ -53,9 +55,18 @@ func NewNetwork(numNodes []int) *Network {
 	n := len(numNodes) - 1
 	net.weights = make([]*mathx.Matrix, n)
 	net.biases = make([]*mathx.Matrix, n)
+	net.actfuncs = make([]mathx.UnaryFunction, n)
+	net.actderfuncs = make([]mathx.UnaryFunction, n)
 	for i := 0; i < n; i++ {
 		net.weights[i] = mathx.NewMatrix(numNodes[i+1], numNodes[i]).RandInit(-0.001, 0.001)
 		net.biases[i] = mathx.NewMatrix(numNodes[i+1], 1).RandInit(-0.001, 0.001)
+		if i+1 == n {
+			net.actfuncs[i] = mathx.Sigmoid
+			net.actderfuncs[i] = mathx.SigmoidPrime
+		} else {
+			net.actfuncs[i] = mathx.Sigmoid
+			net.actderfuncs[i] = mathx.SigmoidPrime
+		}
 	}
 	return net
 }
@@ -117,17 +128,17 @@ func (net *Network) backprop(data *dataloader.Data, nablaWeights, nablaBiases []
 	for i := 0; i < n; i++ {
 		z := net.weights[i].Mul(act).AddWith(net.biases[i])
 		zs = append(zs, z)
-		act = z.Map(mathx.Sigmoid)
+		act = z.Map(net.actfuncs[i])
 		acts = append(acts, act)
 	}
 
-	delta := net.costDerivative(acts[n], data.Output).HadamardProduct(zs[n-1].Map(mathx.SigmoidPrime).T())
+	delta := net.costDerivative(acts[n], data.Output).HadamardProduct(zs[n-1].Map(net.actderfuncs[n-1]).T())
 
 	nablaWeights[n-1] = delta.Mul(acts[n-1].T())
 	nablaBiases[n-1] = delta.Clone()
 	for i := n - 2; i >= 0; i-- {
 		z := zs[i]
-		sp := z.Map(mathx.SigmoidPrime)
+		sp := z.Map(net.actderfuncs[i])
 		delta = net.weights[i+1].T().Mul(delta).HadamardProduct(sp)
 		nablaWeights[i] = delta.Mul(acts[i].T())
 		nablaBiases[i] = delta.Clone()
@@ -166,7 +177,7 @@ func (net *Network) evaluate(dataSet []*dataloader.Data) mathx.Float {
 func (net *Network) feedforward(input *mathx.Matrix) *mathx.Matrix {
 	n := len(net.weights)
 	for i := 0; i < n; i++ {
-		input = net.weights[i].Mul(input).AddWith(net.biases[i]).MapWith(mathx.Sigmoid)
+		input = net.weights[i].Mul(input).AddWith(net.biases[i]).MapWith(net.actfuncs[i])
 	}
 	return input
 }
