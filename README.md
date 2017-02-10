@@ -3,23 +3,23 @@
 ## Install
 
 ```sh
-go get github.com/mkideal/minist
+go get github.com/mkideal/mnist
 ```
 
 ## Dataset
 
-Download dataset [MINIST](http://yann.lecun.com/exdb/mnist/) and unpack it to any position, e.g. `/path/to/minist/dataset`
+Download dataset [MNIST](http://yann.lecun.com/exdb/mnist/) and unpack it to any position, e.g. `/path/to/mnist/dataset`
 
 ## Run
 
 ```sh
-minist
+mnist
 ```
 
 or
 
 ```sh
-minist -d /path/to/minist/dataset
+mnist -d /path/to/mnist/dataset
 ```
 
 If `-d` not specified, path `./dataset` will be used.
