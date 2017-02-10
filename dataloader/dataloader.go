@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/mkideal/minist/mathx"
+	"github.com/mkideal/mnist/mathx"
 )
 
 var (

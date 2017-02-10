@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/mkideal/minist/dataloader"
-	"github.com/mkideal/minist/mathx"
+	"github.com/mkideal/mnist/dataloader"
+	"github.com/mkideal/mnist/mathx"
 )
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	flDatasetPath := flag.String("d", "./dataset", "minist dataset path")
+	flDatasetPath := flag.String("d", "./dataset", "mnist dataset path")
 	flag.Parse()
 
 	var (
