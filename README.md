@@ -1,4 +1,5 @@
-# A small program for recognizing hand-written digits
+Learn how to recognize handwriting digits from scratch
+======================================================
 
 ## Install
 
@@ -24,7 +25,7 @@ mnist -d /path/to/mnist/dataset
 
 If `-d` not specified, path `./dataset` will be used.
 
-## Example output: %x is correct rate
+## Example output: %x is accuracy
 
 	epoch  1: 93.72%
 	epoch  2: 94.35%

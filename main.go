@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/mkideal/mnist/dataloader"
+	"github.com/mkideal/mnist/dataset"
 	"github.com/mkideal/mnist/mathx"
 )
 
@@ -27,14 +27,14 @@ func main() {
 	net := NewNetwork([]int{28 * 28, 24, 10})
 
 	// read training data
-	trainingdata, err := dataloader.ReadTrainingSet(trainingImageFile, trainingLabelFile)
+	trainingdata, err := dataset.ReadTrainingSet(trainingImageFile, trainingLabelFile)
 	if err != nil {
 		panic(err)
 	}
-	trainingdata, _ = dataloader.SplitTrainingSet(trainingdata)
+	trainingdata, _ = dataset.SplitTrainingSet(trainingdata)
 
 	// read test data
-	testdata, err := dataloader.ReadTestSet(testImageFile, testLabelFile)
+	testdata, err := dataset.ReadTestSet(testImageFile, testLabelFile)
 	if err != nil {
 		panic(err)
 	}
@@ -71,7 +71,7 @@ func NewNetwork(numNodes []int) *Network {
 	return net
 }
 
-func (net *Network) train(dataSet, testdata []*dataloader.Data, eta mathx.Float) {
+func (net *Network) train(dataSet, testdata []*dataset.Sample, eta mathx.Float) {
 	var (
 		times         = 20
 		miniBatchSize = len(dataSet) / 6000
@@ -88,7 +88,7 @@ func (net *Network) train(dataSet, testdata []*dataloader.Data, eta mathx.Float)
 	}
 }
 
-func (net *Network) updateMiniBatch(dataSet []*dataloader.Data, eta mathx.Float) {
+func (net *Network) updateMiniBatch(dataSet []*dataset.Sample, eta mathx.Float) {
 	n := len(net.weights)
 	eta /= mathx.Float(len(dataSet))
 	nablaWeights := make([]*mathx.Matrix, n)
@@ -116,7 +116,7 @@ func (net *Network) updateMiniBatch(dataSet []*dataloader.Data, eta mathx.Float)
 	}
 }
 
-func (net *Network) backprop(data *dataloader.Data, nablaWeights, nablaBiases []*mathx.Matrix) {
+func (net *Network) backprop(data *dataset.Sample, nablaWeights, nablaBiases []*mathx.Matrix) {
 	n := len(net.weights)
 	for i := 0; i < n; i++ {
 		nablaWeights[i].Reset()
@@ -132,7 +132,7 @@ func (net *Network) backprop(data *dataloader.Data, nablaWeights, nablaBiases []
 		acts = append(acts, act)
 	}
 
-	delta := net.costDerivative(acts[n], data.Output).HadamardProduct(zs[n-1].Map(net.actderfuncs[n-1]).T())
+	delta := net.costDerivative(acts[n], data.Label).HadamardProduct(zs[n-1].Map(net.actderfuncs[n-1]).T())
 
 	nablaWeights[n-1] = delta.Mul(acts[n-1].T())
 	nablaBiases[n-1] = delta.Clone()
@@ -153,14 +153,14 @@ func cube(x mathx.Float) mathx.Float {
 	return x * x * x
 }
 
-func (net *Network) test(data *dataloader.Data) bool {
+func (net *Network) test(data *dataset.Sample) bool {
 	output := net.feedforward(data.Input)
-	i, _, _ := data.Output.MaxElem()
+	i, _, _ := data.Label.MaxElem()
 	j, _, _ := output.MaxElem()
 	return i == j
 }
 
-func (net *Network) evaluate(dataSet []*dataloader.Data) mathx.Float {
+func (net *Network) evaluate(dataSet []*dataset.Sample) mathx.Float {
 	total := len(dataSet)
 	if total == 0 {
 		return 0
@@ -182,7 +182,7 @@ func (net *Network) feedforward(input *mathx.Matrix) *mathx.Matrix {
 	return input
 }
 
-func shuffle(dataSet []*dataloader.Data) {
+func shuffle(dataSet []*dataset.Sample) {
 	for i := len(dataSet) - 1; i >= 0; i-- {
 		index := rand.Intn(i + 1)
 		dataSet[i], dataSet[index] = dataSet[index], dataSet[i]
