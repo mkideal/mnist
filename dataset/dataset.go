@@ -2,10 +2,16 @@ package dataset
 
 import (
 	"bufio"
+	"compress/gzip"
 	"encoding/binary"
 	"errors"
 	"io"
+	"log"
+	"net/http"
 	"os"
+	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/mkideal/mnist/mathx"
 )
@@ -40,12 +46,71 @@ func SplitTrainingSet(set []*Sample) (trainingdata, validationset []*Sample) {
 	return set[:n], set[n:]
 }
 
+func isFileExist(filename string) bool {
+	_, err := os.Stat(filename)
+	if err != nil {
+		return !os.IsNotExist(err)
+	}
+	return true
+}
+
+func tryDownload(filename string) (string, error) {
+	if strings.HasPrefix(filename, "http://") || strings.HasSuffix(filename, "https://") {
+		cacheDir, err := os.UserHomeDir()
+		if err != nil {
+			cacheDir = ".cache"
+		} else {
+			cacheDir = filepath.Join(cacheDir, ".cache", "download")
+		}
+		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+			return "", err
+		}
+		_, name := path.Split(filename)
+		cacheFilename := filepath.Join(cacheDir, name)
+		if isFileExist(cacheFilename) {
+			return cacheFilename, nil
+		}
+
+		log.Printf("downloading %s to %s", filename, cacheFilename)
+		resp, err := http.Get(filename)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		out, err := os.Create(cacheFilename)
+		if err != nil {
+			return "", err
+		}
+		defer out.Close()
+		if n, err := io.Copy(out, resp.Body); err != nil {
+			return "", err
+		} else {
+			log.Printf("%s downloaded, total %d bytes", filename, n)
+		}
+		filename = cacheFilename
+	}
+	return filename, nil
+}
+
 func readImages(filename string, result []*Sample) ([]*Sample, error) {
+	filename, err := tryDownload(filename)
+	if err != nil {
+		return result, err
+	}
+
 	file, err := os.Open(filename)
 	if err != nil {
 		return result, err
 	}
-	reader := bufio.NewReader(file)
+	defer file.Close()
+
+	gzreader, err := gzip.NewReader(file)
+	if err != nil {
+		return result, err
+	}
+	defer gzreader.Close()
+
+	reader := bufio.NewReader(gzreader)
 	// read magic number
 	if _, err = readInteger(reader); err != nil {
 		return result, err
@@ -94,11 +159,22 @@ func readImages(filename string, result []*Sample) ([]*Sample, error) {
 }
 
 func readLabels(filename string, result []*Sample) ([]*Sample, error) {
+	filename, err := tryDownload(filename)
+	if err != nil {
+		return result, err
+	}
 	file, err := os.Open(filename)
 	if err != nil {
 		return result, err
 	}
-	reader := bufio.NewReader(file)
+
+	gzreader, err := gzip.NewReader(file)
+	if err != nil {
+		return result, err
+	}
+	defer gzreader.Close()
+
+	reader := bufio.NewReader(gzreader)
 	// read magic number
 	if _, err := readInteger(reader); err != nil {
 		return result, err

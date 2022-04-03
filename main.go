@@ -5,23 +5,34 @@ import (
 	"fmt"
 	"math/rand"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/mkideal/mnist/dataset"
 	"github.com/mkideal/mnist/mathx"
 )
 
+func joinFilename(path, filename string) string {
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		if strings.HasSuffix(path, "/") {
+			return path + filename
+		}
+		return path + "/" + filename
+	}
+	return filepath.Join(path, filename)
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	flDatasetPath := flag.String("d", "./dataset", "mnist dataset path")
+	flDatasetPath := flag.String("d", "http://yann.lecun.com/exdb/mnist", "mnist dataset path or remote root URL")
 	flag.Parse()
 
 	var (
-		trainingImageFile = filepath.Join(*flDatasetPath, "train-images-idx3-ubyte")
-		trainingLabelFile = filepath.Join(*flDatasetPath, "train-labels-idx1-ubyte")
-		testImageFile     = filepath.Join(*flDatasetPath, "t10k-images-idx3-ubyte")
-		testLabelFile     = filepath.Join(*flDatasetPath, "t10k-labels-idx1-ubyte")
+		trainingImageFile = joinFilename(*flDatasetPath, "train-images-idx3-ubyte.gz")
+		trainingLabelFile = joinFilename(*flDatasetPath, "train-labels-idx1-ubyte.gz")
+		testImageFile     = joinFilename(*flDatasetPath, "t10k-images-idx3-ubyte.gz")
+		testLabelFile     = joinFilename(*flDatasetPath, "t10k-labels-idx1-ubyte.gz")
 	)
 
 	net := NewNetwork([]int{28 * 28, 24, 10})
@@ -73,7 +84,7 @@ func NewNetwork(numNodes []int) *Network {
 
 func (net *Network) train(dataSet, testdata []*dataset.Sample, eta mathx.Float) {
 	var (
-		times         = 20
+		times         = 10
 		miniBatchSize = len(dataSet) / 6000
 	)
 	for i := 0; i < times; i++ {
@@ -82,8 +93,8 @@ func (net *Network) train(dataSet, testdata []*dataset.Sample, eta mathx.Float) 
 			net.updateMiniBatch(dataSet[j:j+miniBatchSize], eta)
 		}
 		if len(testdata) > 0 {
-			errorPrecision := net.evaluate(testdata)
-			fmt.Printf("epoch %2d: %.2f%%\n", i+1, errorPrecision*100)
+			accuracy := net.evaluate(testdata)
+			fmt.Printf("epoch %2d: accuracy = %.2f%%\n", i+1, accuracy*100)
 		}
 	}
 }
