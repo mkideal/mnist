@@ -1,12 +1,6 @@
 Learn how to recognize handwriting digits from scratch
 ======================================================
 
-## Install
-
-```sh
-go get github.com/mkideal/mnist
-```
-
 ## Dataset
 
 Download dataset [MNIST](http://yann.lecun.com/exdb/mnist/) and unpack it to any position, e.g. `/path/to/mnist/dataset`
