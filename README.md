@@ -1,18 +1,12 @@
 Learn how to recognize handwriting digits from scratch
 ======================================================
 
-## Dataset
-
-Download dataset [MNIST](http://yann.lecun.com/exdb/mnist/) and unpack it to any position, e.g. `/path/to/mnist/dataset`
-
 ## Build and Run
 
 ```sh
 go build
-./mnist -d /path/to/mnist/dataset
+./mnist # download 
 ```
-
-If `-d` not specified, path `./dataset` will be used.
 
 ## Example output
 
